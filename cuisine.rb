@@ -27,6 +27,7 @@ def input_cuisine_cat(get_cuisine_cat,test)
     end
 end
 
+# 料理の新規登録
 def create_new_cuisine(client)
     puts "料理名は？"
     cuisine_name = gets.chomp
@@ -103,6 +104,7 @@ puts <<~EOF
 --------------------------
 1.料理を一覧表示する
 2.新しい料理を追加する
+3.料理に必要な食材を表示する
 EOF
 
 choice = gets.chomp.to_i
@@ -112,4 +114,30 @@ when 1
     list_view(client)
 when 2
     create_new_cuisine(client)
+when 3
+    puts "食材を知りたい料理の名前を入れて下さい"
+    target_cuisine_name = gets.chomp
+
+    # 料理の管理番号を格納するための変数
+    cuisine_id = nil
+    # 詳細を知りたい料理名で検索し、cuisineテーブル内の名前とIDを取り出す
+    client.query("select name, id from cuisine where name = '#{target_cuisine_name}'").each do |name|
+        puts <<~EOF
+        #{name["name"]}
+        -----------
+        EOF
+        cuisine_id = name["id"]
+    end
+    # 料理に対する使用している食材の管理番号を格納するための配列
+    using_food_id = []
+    # 料理のIDで検索してusing_foodテーブルから食材のIDを取り出す
+    client.query("select food_id from using_food where cuisine_id = '#{cuisine_id}'").each do |cuisine_id|
+        using_food_id << cuisine_id["food_id"]
+    end
+    # 配列using_food_idを用いてfoodテーブルを検索、foodの名前を取り出す
+    using_food_id.each do |id|
+        client.query("select name from food where id = #{id}").each do |food|
+            puts food["name"]
+        end
+    end
 end
