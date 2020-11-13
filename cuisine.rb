@@ -16,14 +16,14 @@ def list_view(client)
     end
 end
 
-# 入力されたcat_idとcuisine_catテーブルに存在する番号を照合する。
+# 入力されたcat_idと料理カテゴリーのIDを照合する。
 # 値が不正なら再入力させる
-def input_cuisine_cat(get_cuisine_cat,test)
-    if test.include?(get_cuisine_cat)
+def input_cuisine_cat(get_cuisine_cat,cuisine_cat_ids)
+    if cuisine_cat_ids.include?(get_cuisine_cat)
     else
         puts "エラー：正しい値を入力して下さい"
         get_cuisine_cat = gets.chomp.to_i
-        input_cuisine_cat(get_cuisine_cat,test)
+        input_cuisine_cat(get_cuisine_cat,cuisine_cat_ids)
     end
 end
 
@@ -38,7 +38,7 @@ def create_new_cuisine(client)
 
     puts "'.'を入力すると入力処理を終わります"
 
-    # デリミターの設定
+    # エンドキーの設定
     end_key = "."
     
     # 食材名を配列food_namesに入れていく処理
@@ -56,17 +56,18 @@ def create_new_cuisine(client)
         end
         food_name = gets.chomp
     end
-    test = []
+    # 料理カテゴリーのidを格納するための配列
+    cuisine_cat_ids = []
     puts "料理ジャンルを選択して下さい"
     cuisine_cats = client.query("select id,name from cuisine_cat")
     cuisine_cats.each do |cat|
         puts "#{cat["id"]}. #{cat["name"]}"
-        test << cat["id"]
+        cuisine_cat_ids << cat["id"]
     end
 
     get_cuisine_cat = gets.chomp.to_i
     # cuisine_catテーブルと入力値を照合する関数を呼び出す
-    input_cuisine_cat(get_cuisine_cat, test)
+    input_cuisine_cat(get_cuisine_cat, cuisine_cat_ids)
     puts <<~EOF
     情報を保存しますか？
     1.保存する
@@ -99,6 +100,47 @@ def create_new_cuisine(client)
     end
 end
 
+# 料理に必要な食材の情報を表示する
+def cuisine_detail(client)
+    puts "食材を知りたい料理の名前を入れて下さい"
+    target_cuisine_name_frag = false
+    while target_cuisine_name_frag == false
+        # 詳細を知りたい料理名を入力
+        target_cuisine_name = gets.chomp
+        # 料理の管理番号を格納するための変数
+        cuisine_id = nil
+        # 詳細を知りたい料理名で検索し、cuisineテーブル内の名前とIDを取り出す
+        get_cuisine = client.query("select name, id from cuisine where name = '#{target_cuisine_name}'")
+        if get_cuisine.count != 0
+            get_cuisine.each do |name|
+                puts <<~EOF
+                #{name["name"]}
+                -----------
+                EOF
+                cuisine_id = name["id"]
+            end
+            target_cuisine_name_frag = true
+        else
+            puts <<~EOF
+            エラー：該当する料理名がありません
+            食材を知りたい料理の名前を入れて下さい
+            EOF
+        end
+    end
+    # 料理に対して使用している食材の管理番号を格納するための配列
+    using_food_id = []
+    # 料理のIDで検索してusing_foodテーブルから食材のIDを取り出す
+    client.query("select food_id from using_food where cuisine_id = '#{cuisine_id}'").each do |cuisine_id|
+        using_food_id << cuisine_id["food_id"]
+    end
+    # 配列using_food_idを用いてfoodテーブルを検索、foodの名前を取り出す
+    using_food_id.each do |id|
+        client.query("select name from food where id = #{id}").each do |food|
+            puts food["name"]
+        end
+    end
+end
+
 puts <<~EOF
 実行したい処理を選択して下さい。
 --------------------------
@@ -115,29 +157,5 @@ when 1
 when 2
     create_new_cuisine(client)
 when 3
-    puts "食材を知りたい料理の名前を入れて下さい"
-    target_cuisine_name = gets.chomp
-
-    # 料理の管理番号を格納するための変数
-    cuisine_id = nil
-    # 詳細を知りたい料理名で検索し、cuisineテーブル内の名前とIDを取り出す
-    client.query("select name, id from cuisine where name = '#{target_cuisine_name}'").each do |name|
-        puts <<~EOF
-        #{name["name"]}
-        -----------
-        EOF
-        cuisine_id = name["id"]
-    end
-    # 料理に対する使用している食材の管理番号を格納するための配列
-    using_food_id = []
-    # 料理のIDで検索してusing_foodテーブルから食材のIDを取り出す
-    client.query("select food_id from using_food where cuisine_id = '#{cuisine_id}'").each do |cuisine_id|
-        using_food_id << cuisine_id["food_id"]
-    end
-    # 配列using_food_idを用いてfoodテーブルを検索、foodの名前を取り出す
-    using_food_id.each do |id|
-        client.query("select name from food where id = #{id}").each do |food|
-            puts food["name"]
-        end
-    end
+    cuisine_detail(client)
 end
