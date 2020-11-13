@@ -5,14 +5,20 @@ client = Mysql2::Client.new(:host => "localhost", :username => "root", :password
 
 # 料理テーブルを一覧表示する
 def list_view(client)
-    results = client.query("SELECT * FROM cuisine")
+    categories = client.query("select id ,name from cuisine_cat")
+    cuisines = client.query("select name,cat_id from cuisine")
     puts <<~EOF
     登録されている料理の一覧
     --------------------
     EOF
 
-    results.each do |result|
-        puts result["name"]
+    # ”select B.name, A.name from cuisine A RIGHT JOIN cuisine_cat B on A.cat_id = B.id”を表現
+    categories.each do |cat|
+        cuisines.each do |cuisine|
+            if cat["id"] == cuisine["cat_id"]
+                puts "#{cat["name"]} | #{cuisine["name"]}"
+            end
+        end
     end
 end
 
@@ -141,12 +147,39 @@ def cuisine_detail(client)
     end
 end
 
+def cuisine_delete(client)
+    puts "削除したい料理名を入力して下さい"
+    delete_id = nil
+    delete_cuisine_frag = false
+    while !delete_cuisine_frag
+        # 削除したい料理名を入力
+        delete_cuisine_name = gets.chomp
+        # 削除したい料理のレコードを検索
+        cuisine = client.query("select id, name from cuisine where name = '#{delete_cuisine_name}'")
+        if cuisine.count != 0
+            cuisine.each do |cuisine|
+                delete_id = cuisine["id"]
+            end
+            # 料理と食材を紐付けている中間テーブルの削除
+            client.query("delete from using_food where cuisine_id = #{delete_id}")
+            # cuisineテーブルの対象レコードを削除
+            client.query("delete from cuisine where id = #{delete_id}")
+            delete_cuisine_frag = true
+            puts "料理の削除が完了しました"
+        else
+            puts "エラー：該当する料理がありません"
+        end
+    end
+    
+end
+
 puts <<~EOF
 実行したい処理を選択して下さい。
 --------------------------
 1.料理を一覧表示する
 2.新しい料理を追加する
 3.料理に必要な食材を表示する
+4.料理を削除する
 EOF
 
 choice = gets.chomp.to_i
@@ -158,4 +191,6 @@ when 2
     create_new_cuisine(client)
 when 3
     cuisine_detail(client)
+when 4
+    cuisine_delete(client)
 end
