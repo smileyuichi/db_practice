@@ -17,3 +17,6 @@
 - 新しい料理を追加する
 - 新しい食材を追加する
 - 新しい調味料を追加する
+
+## 構成図
+<img width="794" alt="cuisine_infra_diagram" src="https://user-images.githubusercontent.com/58574285/99363440-18529d80-28f8-11eb-9095-d153b9f26a5c.png">
